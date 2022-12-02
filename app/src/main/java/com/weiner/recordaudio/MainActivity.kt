@@ -26,16 +26,20 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
 
-
         val buttonStart = findViewById<Button>(R.id.buttonStart)
+        val buttonStop = findViewById<Button>(R.id.buttonStop)
+
         buttonStart.setOnClickListener {
             isRunning = true
+            buttonStart.isEnabled = false
+            buttonStop.isEnabled = true
             recordAudioWithPermissions()
         }
 
-        val buttonStop = findViewById<Button>(R.id.buttonStop)
         buttonStop.setOnClickListener {
             isRunning = false
+            buttonStart.isEnabled = true
+            buttonStop.isEnabled = false
         }
 
     }
@@ -78,7 +82,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    val requestPermissionLauncher =
+    private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
             if (isGranted) {
                 // Разрешение дали 😊
@@ -94,6 +98,7 @@ class MainActivity : AppCompatActivity() {
                 ).show()
             }
         }
+
     @RequiresApi(Build.VERSION_CODES.M)
     fun recordAudioWithPermissions() {
 
