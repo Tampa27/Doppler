@@ -3,4 +3,4 @@
 
 [Compiled application (APK)](https://github.com/dmitryweiner/kotlin-capture-audio/raw/master/app-debug.apk)
 
-
+![](audio-record.gif)

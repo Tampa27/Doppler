@@ -18,7 +18,14 @@ import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity() {
 
+    companion object {
+        const val MAX_ARRAY_SIZE = 30
+    }
+
     var isRunning = false
+
+    val data = IntArray(MAX_ARRAY_SIZE) { 0 }
+    var currentIndex = 0
 
     @RequiresApi(Build.VERSION_CODES.M)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -62,7 +69,6 @@ class MainActivity : AppCompatActivity() {
             RECORDER_AUDIO_ENCODING, bufferSize
         )
 
-        val textView = findViewById<TextView>(R.id.textView)
         thread {
             recorder.startRecording()
             while (isRunning) {
@@ -70,12 +76,25 @@ class MainActivity : AppCompatActivity() {
                 recorder.read(sData, 0, bufferSize)
                 val max = Math.round(1.0 * sData.max() / Short.MAX_VALUE * 100).toInt()
                 runOnUiThread {
-                    println(max)
-                    textView.text = "#".repeat(max)
+                    data[currentIndex] = max
+                    render()
+                    currentIndex = if (currentIndex == (MAX_ARRAY_SIZE - 1)) 0 else currentIndex + 1
                 }
             }
             recorder.stop()
         }
+    }
+
+    private fun render() {
+        val textView = findViewById<TextView>(R.id.textView)
+        var s = ""
+        repeat(MAX_ARRAY_SIZE) {
+            val index = if (currentIndex + it + 1 < MAX_ARRAY_SIZE) currentIndex + it + 1 else currentIndex + it + 1 - MAX_ARRAY_SIZE
+            val value = data[index]
+            s += "#".repeat(value)
+            s += "\n"
+        }
+        textView.text = s
     }
 
     private val requestPermissionLauncher =
