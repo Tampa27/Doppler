@@ -54,16 +54,12 @@ class MainActivity : AppCompatActivity() {
             RECORDER_SAMPLERATE,
             RECORDER_CHANNELS, RECORDER_AUDIO_ENCODING
         )
-        val BufferElements2Rec = 1024 // want to play 2048 (2K) since 2 bytes we use only 1024
-
-        val BytesPerElement = 2 // 2 bytes in 16bit format
-
-        val sData = ShortArray(BufferElements2Rec)
+        val sData = ShortArray(bufferSize)
 
         val recorder = AudioRecord(
             MediaRecorder.AudioSource.MIC,
             RECORDER_SAMPLERATE, RECORDER_CHANNELS,
-            RECORDER_AUDIO_ENCODING, BufferElements2Rec * BytesPerElement
+            RECORDER_AUDIO_ENCODING, bufferSize
         )
 
         val textView = findViewById<TextView>(R.id.textView)
@@ -71,7 +67,7 @@ class MainActivity : AppCompatActivity() {
             recorder.startRecording()
             while (isRunning) {
                 // gets the voice output from microphone to byte format
-                recorder.read(sData, 0, BufferElements2Rec)
+                recorder.read(sData, 0, bufferSize)
                 val max = Math.round(1.0 * sData.max() / Short.MAX_VALUE * 100).toInt()
                 runOnUiThread {
                     println(max)
