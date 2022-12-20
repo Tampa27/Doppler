@@ -19,6 +19,7 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import kotlin.concurrent.thread
+import kotlin.math.log2
 import kotlin.properties.Delegates
 
 class MainActivity : AppCompatActivity() {
@@ -71,11 +72,12 @@ class MainActivity : AppCompatActivity() {
         val RECORDER_SAMPLERATE = 8000
         val RECORDER_CHANNELS: Int = AudioFormat.CHANNEL_IN_MONO
         val RECORDER_AUDIO_ENCODING: Int = AudioFormat.ENCODING_PCM_16BIT
-        frequenciesCount = AudioRecord.getMinBufferSize(
+        val butterSize = AudioRecord.getMinBufferSize(
             RECORDER_SAMPLERATE,
             RECORDER_CHANNELS, RECORDER_AUDIO_ENCODING
         )
-        val buffer = ShortArray(frequenciesCount)
+        val buffer = ShortArray(butterSize)
+        frequenciesCount = getMinimalPowerOf2(butterSize)
         data = Array(MAX_ARRAY_SIZE) {
             DoubleArray(frequenciesCount) { 0.0 }
         }
@@ -105,10 +107,8 @@ class MainActivity : AppCompatActivity() {
                     data[currentIndex][fr] = Math.abs(y[fr])
                 }
 
-                runOnUiThread {
-                    render()
-                    currentIndex = if (currentIndex == (MAX_ARRAY_SIZE - 1)) 0 else currentIndex + 1
-                }
+                render()
+                currentIndex = if (currentIndex == (MAX_ARRAY_SIZE - 1)) 0 else currentIndex + 1
             }
             recorder.stop()
         }
@@ -132,7 +132,10 @@ class MainActivity : AppCompatActivity() {
                 )
             }
         }
-        imageView.setImageBitmap(bmp)
+        runOnUiThread {
+            imageView.setImageBitmap(bmp)
+            imageView.invalidate()
+        }
     }
 
     private val requestPermissionLauncher =
@@ -170,6 +173,10 @@ class MainActivity : AppCompatActivity() {
             }
             else -> requestPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
         }
+    }
+
+    private fun getMinimalPowerOf2(n: Int): Int {
+        return Math.pow(2.0, Math.floor(log2(n.toDouble()))).toInt()
     }
 }
 
