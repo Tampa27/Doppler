@@ -20,6 +20,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import kotlin.concurrent.thread
 import kotlin.math.log2
+import kotlin.math.roundToInt
 import kotlin.properties.Delegates
 
 class MainActivity : AppCompatActivity() {
@@ -118,11 +119,13 @@ class MainActivity : AppCompatActivity() {
         val c = Canvas(bmp)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         val rectHeight = 1.0f * bmp.height / MAX_ARRAY_SIZE
-        val rectWidth = 1.0f * bmp.width / frequenciesCount
+        val rectWidth = 1.0f * bmp.width / (frequenciesCount / 2.0f)
         repeat(MAX_ARRAY_SIZE) { y ->
             val index = if (currentIndex + y + 1 < MAX_ARRAY_SIZE) currentIndex + y + 1 else currentIndex + y + 1 - MAX_ARRAY_SIZE
-            for (x in 0 until frequenciesCount) {
-                paint.color = getColorByValue(data[index][x])
+            val min = data[index].min()
+            val max = data[index].max()
+            for (x in 0 until frequenciesCount / 2) {
+                paint.color = getColorByValue(data[index][x], min, max)
                 c.drawRect(
                     x * rectWidth,
                     y * rectHeight,
@@ -180,13 +183,11 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
-fun getColorByValue(value: Double): Int {
-    var green = (Math.log10(value) * 30).toInt()
-    if (green > 255) {
-        green = 255
+fun getColorByValue(value: Double, min: Double, max: Double): Int {
+    if (min == 0.0 && max == 0.0) {
+        return Color.rgb(0, 0, 0)
     }
-    if (green < 0) {
-        green = 0
-    }
-    return Color.rgb(0, green, 0)
+    val normalizedValue = (value - min) / (max - min)
+    val color = (normalizedValue * 255).roundToInt()
+    return Color.rgb(color, color, color)
 }
