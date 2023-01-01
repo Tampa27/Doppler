@@ -23,6 +23,7 @@ import androidx.core.content.ContextCompat
 import kotlin.concurrent.thread
 import kotlin.math.log2
 import kotlin.math.roundToInt
+import kotlin.math.sin
 import kotlin.properties.Delegates
 
 class MainActivity : AppCompatActivity() {
@@ -204,8 +205,11 @@ fun getColorByValue(value: Double, min: Double, max: Double): Int {
         return Color.rgb(0, 0, 0)
     }
     val normalizedValue = (value - min) / (max - min)
-    val color = (normalizedValue * 255).roundToInt()
-    return Color.rgb(color, color, color)
+    val freq = Math.PI * 2 / 1.5
+    val red = ((sin(freq * normalizedValue + 0) * 127 + 128) * normalizedValue).roundToInt()
+    val green = ((sin(freq * normalizedValue + 2) * 127 + 128) * normalizedValue).roundToInt()
+    val blue = ((sin(freq * normalizedValue + 4) * 127 + 128) * normalizedValue).roundToInt()
+    return Color.rgb(red, green, blue)
 }
 
 fun getMinimalPowerOf2(n: Int): Int {
