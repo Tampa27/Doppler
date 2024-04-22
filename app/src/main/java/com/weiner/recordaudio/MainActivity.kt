@@ -11,7 +11,10 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.Build
 import android.os.Bundle
-import android.widget.Button
+import android.os.Handler
+import android.os.Looper
+import android.view.View
+import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -20,6 +23,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import kotlin.concurrent.thread
 import kotlin.math.log2
+import kotlin.math.roundToInt
+import kotlin.math.sin
 import kotlin.properties.Delegates
 
 class MainActivity : AppCompatActivity() {
@@ -27,6 +32,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         const val MAX_ARRAY_SIZE = 200
     }
+
     private var isRunning = false
     private lateinit var data: Array<DoubleArray>
     private var currentIndex = 0
@@ -39,25 +45,39 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-
-        val buttonStart = findViewById<Button>(R.id.buttonStart)
-        val buttonStop = findViewById<Button>(R.id.buttonStop)
-
-        buttonStart.setOnClickListener {
-            isRunning = true
-            buttonStart.isEnabled = false
-            buttonStop.isEnabled = true
-            recordAudioWithPermissions()
-        }
-
-        buttonStop.setOnClickListener {
-            isRunning = false
-            buttonStart.isEnabled = true
-            buttonStop.isEnabled = false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.setDecorFitsSystemWindows(false)
+        } else {
+            window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_FULLSCREEN
+                    or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
         }
 
         imageView = findViewById(R.id.imageView)
+
+        imageView.setOnClickListener {
+            if (!isRunning) {
+                isRunning = true
+                recordAudioWithPermissions()
+            } else {
+                isRunning = false
+            }
+        }
+
+        Toast.makeText(
+            applicationContext,
+            "Click on screen to start/stop audio capture",
+            Toast.LENGTH_LONG).show()
+
+        Handler(Looper.getMainLooper()).postDelayed({
+            isRunning = true
+            recordAudioWithPermissions()
+        }, 2000)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -68,7 +88,6 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("MissingPermission")
     fun recordAudio() {
-        // check permissions first
         val RECORDER_SAMPLERATE = 8000
         val RECORDER_CHANNELS: Int = AudioFormat.CHANNEL_IN_MONO
         val RECORDER_AUDIO_ENCODING: Int = AudioFormat.ENCODING_PCM_16BIT
@@ -117,17 +136,22 @@ class MainActivity : AppCompatActivity() {
     private fun render() {
         val c = Canvas(bmp)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-        val rectHeight = 1.0f * bmp.height / MAX_ARRAY_SIZE
-        val rectWidth = 1.0f * bmp.width / frequenciesCount
-        repeat(MAX_ARRAY_SIZE) { y ->
-            val index = if (currentIndex + y + 1 < MAX_ARRAY_SIZE) currentIndex + y + 1 else currentIndex + y + 1 - MAX_ARRAY_SIZE
-            for (x in 0 until frequenciesCount) {
-                paint.color = getColorByValue(data[index][x])
+        val rectWidth = 1.0f * bmp.width / MAX_ARRAY_SIZE
+        val rectHeight = 1.0f * bmp.height / (frequenciesCount / 2.0f)
+        val halfOfFrequencies = frequenciesCount / 2
+        repeat(MAX_ARRAY_SIZE) { x ->
+            val index =
+                if (currentIndex + x + 1 < MAX_ARRAY_SIZE) currentIndex + x + 1 else currentIndex + x + 1 - MAX_ARRAY_SIZE
+            val min = data[index].min()
+            val max = data[index].max()
+
+            for (y in 0 until halfOfFrequencies) {
+                paint.color = getColorByValue(data[index][y], min, max)
                 c.drawRect(
                     x * rectWidth,
-                    y * rectHeight,
+                    (halfOfFrequencies - y) * rectHeight,
                     (x + 1) * rectWidth,
-                    (y + 1) * rectHeight,
+                    (halfOfFrequencies - y + 1) * rectHeight,
                     paint
                 )
             }
@@ -175,18 +199,24 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun getMinimalPowerOf2(n: Int): Int {
-        return Math.pow(2.0, Math.floor(log2(n.toDouble()))).toInt()
+    override fun onDestroy() {
+        super.onDestroy()
+        isRunning = false
     }
 }
 
-fun getColorByValue(value: Double): Int {
-    var green = (Math.log10(value) * 30).toInt()
-    if (green > 255) {
-        green = 255
+fun getColorByValue(value: Double, min: Double, max: Double): Int {
+    if (min == 0.0 && max == 0.0) {
+        return Color.rgb(0, 0, 0)
     }
-    if (green < 0) {
-        green = 0
-    }
-    return Color.rgb(0, green, 0)
+    val normalizedValue = (value - min) / (max - min)
+    val freq = Math.PI * 2 / 1.5
+    val red = ((sin(freq * normalizedValue + 0) * 127 + 128) * normalizedValue).roundToInt()
+    val green = ((sin(freq * normalizedValue + 2) * 127 + 128) * normalizedValue).roundToInt()
+    val blue = ((sin(freq * normalizedValue + 4) * 127 + 128) * normalizedValue).roundToInt()
+    return Color.rgb(red, green, blue)
+}
+
+fun getMinimalPowerOf2(n: Int): Int {
+    return Math.pow(2.0, Math.floor(log2(n.toDouble()))).toInt()
 }
