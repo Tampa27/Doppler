@@ -16,12 +16,14 @@ import android.os.Looper
 import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import kotlin.concurrent.thread
+import kotlin.math.absoluteValue
 import kotlin.math.log2
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -30,15 +32,18 @@ import kotlin.properties.Delegates
 class MainActivity : AppCompatActivity() {
 
     companion object {
-        const val MAX_ARRAY_SIZE = 200
+        const val MAX_ARRAY_SIZE = 100//200
     }
 
     private var isRunning = false
     private lateinit var data: Array<DoubleArray>
     private var currentIndex = 0
     private var frequenciesCount by Delegates.notNull<Int>()
-
+    private var ip = 0.00
+    private val Fs = 11025
+    private val textWidth = 60
     private lateinit var imageView: ImageView
+    private lateinit var ipText:TextView
     private lateinit var bmp: Bitmap
 
     @RequiresApi(Build.VERSION_CODES.M)
@@ -59,7 +64,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         imageView = findViewById(R.id.imageView)
-
+        ipText = findViewById(R.id.ipText)
         imageView.setOnClickListener {
             if (!isRunning) {
                 isRunning = true
@@ -88,7 +93,7 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("MissingPermission")
     fun recordAudio() {
-        val RECORDER_SAMPLERATE = 8000
+        val RECORDER_SAMPLERATE = Fs//8000
         val RECORDER_CHANNELS: Int = AudioFormat.CHANNEL_IN_MONO
         val RECORDER_AUDIO_ENCODING: Int = AudioFormat.ENCODING_PCM_16BIT
         val butterSize = AudioRecord.getMinBufferSize(
@@ -96,7 +101,7 @@ class MainActivity : AppCompatActivity() {
             RECORDER_CHANNELS, RECORDER_AUDIO_ENCODING
         )
         val buffer = ShortArray(butterSize)
-        frequenciesCount = getMinimalPowerOf2(butterSize)
+        frequenciesCount = 512//getMinimalPowerOf2(butterSize)
         data = Array(MAX_ARRAY_SIZE) {
             DoubleArray(frequenciesCount) { 0.0 }
         }
@@ -125,7 +130,14 @@ class MainActivity : AppCompatActivity() {
                 for (fr in 0 until frequenciesCount) {
                     data[currentIndex][fr] = Math.abs(y[fr])
                 }
-
+                val yabs = y.map { it.absoluteValue }
+                val fmax = yabs.max()
+                val fmin = yabs.min()
+                val sum = yabs.sum()
+                val fmed = sum/yabs.size
+                if (fmed > 0.0000001) {
+                    ip = (fmax - fmin) / fmed
+                }
                 render()
                 currentIndex = if (currentIndex == (MAX_ARRAY_SIZE - 1)) 0 else currentIndex + 1
             }
@@ -139,6 +151,15 @@ class MainActivity : AppCompatActivity() {
         val rectWidth = 1.0f * bmp.width / MAX_ARRAY_SIZE
         val rectHeight = 1.0f * bmp.height / (frequenciesCount / 2.0f)
         val halfOfFrequencies = frequenciesCount / 2
+        paint.color = Color.WHITE
+        paint.textSize = 30f
+        for (i in 0..Fs/2 step 1000) {
+            val yt = bmp.height*(1f - i.toFloat()/(Fs/2))
+            if (i < (Fs/2-1000))
+                c.drawText(" " + i / 1000+"k",0f,yt,paint)
+            else
+                c.drawText(" Hz",0f,yt,paint)
+        }
         repeat(MAX_ARRAY_SIZE) { x ->
             val index =
                 if (currentIndex + x + 1 < MAX_ARRAY_SIZE) currentIndex + x + 1 else currentIndex + x + 1 - MAX_ARRAY_SIZE
@@ -148,9 +169,9 @@ class MainActivity : AppCompatActivity() {
             for (y in 0 until halfOfFrequencies) {
                 paint.color = getColorByValue(data[index][y], min, max)
                 c.drawRect(
-                    x * rectWidth,
+                    x * (rectWidth)+textWidth,
                     (halfOfFrequencies - y) * rectHeight,
-                    (x + 1) * rectWidth,
+                    (x + 1) * (rectWidth)+textWidth,
                     (halfOfFrequencies - y + 1) * rectHeight,
                     paint
                 )
@@ -158,6 +179,7 @@ class MainActivity : AppCompatActivity() {
         }
         runOnUiThread {
             imageView.setImageBitmap(bmp)
+            ipText.text = String.format("%.2f",ip)
             imageView.invalidate()
         }
     }
