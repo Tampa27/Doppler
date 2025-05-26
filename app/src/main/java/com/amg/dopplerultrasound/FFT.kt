@@ -1,4 +1,4 @@
-package com.weiner.recordaudio
+package com.amg.dopplerultrasound
 
 class FFT(private val frequenciesCount: Int) {
     private val m = (Math.log(frequenciesCount.toDouble()) / Math.log(2.0)).toInt()
@@ -78,5 +78,13 @@ class FFT(private val frequenciesCount: Int) {
             }
             i++
         }
+    }
+
+    fun hanningWindow(x: DoubleArray, y: DoubleArray){
+
+    }
+
+    fun hammingWindow(){
+
     }
 }
