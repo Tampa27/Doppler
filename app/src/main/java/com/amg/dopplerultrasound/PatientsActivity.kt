@@ -1,6 +1,5 @@
 package com.amg.dopplerultrasound
 
-import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.Menu
@@ -9,31 +8,82 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.RadioButton
 import android.widget.RadioGroup
-import androidx.appcompat.app.AlertDialog
-import com.google.android.material.snackbar.Snackbar
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.navigation.findNavController
-import androidx.navigation.ui.AppBarConfiguration
-import androidx.navigation.ui.navigateUp
-import androidx.navigation.ui.setupActionBarWithNavController
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.amg.dopplerultrasound.data.Paciente
 import com.amg.dopplerultrasound.data.PacienteDao
-import com.amg.dopplerultrasound.databinding.ActivityPatientsBinding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.weiner.recordaudio.AppDatabase
+import kotlinx.coroutines.launch
 
 class PatientsActivity : AppCompatActivity() {
 
     lateinit var database: AppDatabase
     lateinit var pacienteDao: PacienteDao
+
+    private lateinit var recyclerView: RecyclerView
+    private lateinit var pacienteAdapter: PacienteAdapter
+    private val listaDePacientes = mutableListOf<Paciente>() // Lista de ejemplo, idealmente desde ViewModel/Room
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_patients)
 
-//        database = AppDatabase.getDatabase(applicationContext) // O el contexto apropiado
-  //      pacienteDao = database.pacienteDao()
+        database = AppDatabase.getDatabase(applicationContext) // O el contexto apropiado
+        pacienteDao = database.pacienteDao()
+
+        recyclerView = findViewById(R.id.recyclerViewPacientes)
+        val fabAddPatient: FloatingActionButton = findViewById(R.id.fabAddPatient)
+
+        // Configurar el Adapter
+        pacienteAdapter = PacienteAdapter { pacienteSeleccionado ->
+            // Acción al hacer clic en un paciente de la lista
+            //Toast.makeText(this, "Paciente: ${pacienteSeleccionado.nombre}", Toast.LENGTH_SHORT).show()
+            // Aquí podrías abrir una pantalla de detalles del paciente, por ejemplo
+        }
+
+        // Configurar el RecyclerView
+        recyclerView.adapter = pacienteAdapter
+        recyclerView.layoutManager = LinearLayoutManager(this)
+
+        // Cargar datos de ejemplo (o desde tu ViewModel/Base de Datos)
+        //cargarPacientesDeEjemplo() // Reemplaza esto con tu lógica de carga de datos real
+        cargarPacientes()
+
+        fabAddPatient.setOnClickListener {
+            mostrarDialogoAgregarPaciente()
+        }
 
     }
+
+    private fun cargarPacientes(){
+        lifecycleScope.launch {
+            val pacientes = pacienteDao.getTodosLosPacientes()
+            pacientes.collect{
+                pacienteAdapter.submitList(it)
+            }
+        }
+    }
+
+    private fun cargarPacientesDeEjemplo() {
+        // Simulación: En una app real, esto vendría de una base de datos (Room) o una API
+        listaDePacientes.add(Paciente(id = 1,"Ana Pérez", 30, "Femenino", "ATGC...", mutableListOf(),
+            mutableListOf()
+        ))
+        listaDePacientes.add(Paciente(id = 2,"Carlos Rodríguez", 25, "Masculino", "CGTA...", mutableListOf(),
+            mutableListOf()
+        ))
+        listaDePacientes.add(Paciente(id = 3,"Laura Gómez", 22, "Femenino", "TTAC...", mutableListOf(),
+            mutableListOf()
+        ))
+        // Notificar al adapter. Con ListAdapter, simplemente envías la nueva lista.
+        pacienteAdapter.submitList(listaDePacientes.toList()) // Envía una copia para DiffUtil
+    }
+
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.patients_menu, menu)
@@ -127,13 +177,15 @@ class PatientsActivity : AppCompatActivity() {
                     audios = mutableListOf()
                 )
 
+                //listaDePacientes.add(nuevoPaciente) // Añade a la lista de ejemplo
+                //pacienteAdapter.submitList(listaDePacientes.toList()) // Actualiza el RecyclerView
                 // Aquí llamas a tu método del ViewModel o directamente al DAO para guardar el paciente
                 // Ejemplo (necesitarás un CoroutineScope):
-                // lifecycleScope.launch {
-                //     pacienteDao.insertarPaciente(nuevoPaciente)
-                //     // Mostrar un Toast o mensaje de éxito
-                //     Toast.makeText(this@PatientsActivity, "Paciente guardado", Toast.LENGTH_SHORT).show()
-                // }
+                 lifecycleScope.launch {
+                     pacienteDao.insertarPaciente(nuevoPaciente)
+                     // Mostrar un Toast o mensaje de éxito
+                     Toast.makeText(this@PatientsActivity, "Paciente guardado", Toast.LENGTH_SHORT).show()
+                 }
 
                 println("Paciente a guardar: $nuevoPaciente") // Para depuración
                 dialog.dismiss() // Cerrar el diálogo después de guardar
