@@ -1,5 +1,8 @@
 package com.amg.dopplerultrasound
 
+import kotlin.math.PI
+import kotlin.math.cos
+
 class FFT(private val frequenciesCount: Int) {
     private val m = (Math.log(frequenciesCount.toDouble()) / Math.log(2.0)).toInt()
 
@@ -29,7 +32,7 @@ class FFT(private val frequenciesCount: Int) {
         var s: Double
         var t1: Double
         var t2: Double
-
+        //hanningWindow(y)
         // Bit-reverse
         j = 0
         var n2 = frequenciesCount / 2
@@ -80,11 +83,40 @@ class FFT(private val frequenciesCount: Int) {
         }
     }
 
-    fun hanningWindow(x: DoubleArray, y: DoubleArray){
-
+    fun hanningWindow(data: DoubleArray) {
+        if (data.size != frequenciesCount) {
+            throw IllegalArgumentException("Input array 'data' must have length == frequenciesCount ($frequenciesCount)")
+        }
+        if (frequenciesCount <= 1) {
+            return // Windowing is not meaningful for N <= 1
+        }
+        for (n in 0 until frequenciesCount) {
+            val multiplier = 0.5 * (1.0 - cos(2.0 * PI * n / (frequenciesCount - 1)))
+            data[n] *= multiplier
+        }
     }
 
-    fun hammingWindow(){
-
+    /**
+     * Applies a Hamming window to the input data (in-place).
+     * Typically applied to the real part of the signal (x) before FFT.
+     * The Hamming window is defined as: w(n) = 0.54 - 0.46 * cos(2 * PI * n / (N - 1))
+     * (There's also a variant with 0.53836 instead of 0.54, this is the more common one)
+     *
+     * @param data The array of data (e.g., the real part x) to apply the window to.
+     *             The imaginary part (y) is typically not windowed if it's initially zero.
+     */
+    fun hammingWindow(data: DoubleArray) {
+        if (data.size != frequenciesCount) {
+            throw IllegalArgumentException("Input array 'data' must have length == frequenciesCount ($frequenciesCount)")
+        }
+        if (frequenciesCount <= 1) {
+            return // Windowing is not meaningful for N <= 1
+        }
+        val alpha = 0.54
+        val beta = 0.46 // Corresponds to 1 - alpha
+        for (n in 0 until frequenciesCount) {
+            val multiplier = alpha - beta * cos(2.0 * PI * n / (frequenciesCount - 1))
+            data[n] *= multiplier
+        }
     }
 }

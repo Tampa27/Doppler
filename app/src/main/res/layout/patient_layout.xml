@@ -12,7 +12,7 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp">
+        android:padding="8dp">
 
         <!-- Foto del Paciente -->
         <ImageView
@@ -32,6 +32,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
+            android:textColor="@color/teal_700"
             android:textAppearance="@style/TextAppearance.MaterialComponents.Headline6"
             app:layout_constraintStart_toEndOf="@id/imageViewPacienteFoto"
             app:layout_constraintTop_toTopOf="@id/imageViewPacienteFoto"
@@ -46,6 +47,7 @@
             android:layout_marginStart="16dp"
             android:layout_marginTop="4dp"
             android:text="Edad:"
+            android:textColor="@color/teal_700"
             android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
             app:layout_constraintStart_toEndOf="@id/imageViewPacienteFoto"
             app:layout_constraintTop_toBottomOf="@id/textViewPacienteNombre" />
@@ -55,6 +57,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="4dp"
+            android:textColor="@color/teal_700"
             android:textAppearance="@style/TextAppearance.MaterialComponents.Body1"
             app:layout_constraintStart_toEndOf="@id/textViewPacienteEdadLabel"
             app:layout_constraintTop_toTopOf="@id/textViewPacienteEdadLabel"
@@ -70,6 +73,7 @@
             android:layout_marginStart="16dp"
             android:layout_marginTop="4dp"
             android:text="Sexo:"
+            android:textColor="@color/teal_700"
             android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
             app:layout_constraintStart_toEndOf="@id/imageViewPacienteFoto"
             app:layout_constraintTop_toBottomOf="@id/textViewPacienteEdadLabel" />
@@ -79,6 +83,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="4dp"
+            android:textColor="@color/teal_700"
             android:textAppearance="@style/TextAppearance.MaterialComponents.Body1"
             app:layout_constraintStart_toEndOf="@id/textViewPacienteSexoLabel"
             app:layout_constraintTop_toTopOf="@id/textViewPacienteSexoLabel"
@@ -94,6 +99,7 @@
             android:layout_marginStart="16dp"
             android:layout_marginTop="4dp"
             android:text="DNA:"
+            android:textColor="@color/teal_700"
             android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
             app:layout_constraintStart_toEndOf="@id/imageViewPacienteFoto"
             app:layout_constraintTop_toBottomOf="@id/textViewPacienteSexoLabel"
@@ -108,12 +114,25 @@
             android:layout_marginStart="4dp"
             android:maxLines="1"
             android:ellipsize="end"
+            android:textColor="@color/teal_700"
             android:textAppearance="@style/TextAppearance.MaterialComponents.Body1"
             app:layout_constraintStart_toEndOf="@id/textViewPacienteDnaLabel"
             app:layout_constraintTop_toTopOf="@id/textViewPacienteDnaLabel"
             app:layout_constraintBaseline_toBaselineOf="@id/textViewPacienteDnaLabel"
             app:layout_constraintEnd_toEndOf="parent"
             tools:text="ATGCGTTAACC..." />
+        <!-- Botón de Eliminar -->
+        <ImageButton
+            android:id="@+id/buttonEliminarPaciente"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/baseline_delete_24"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Eliminar paciente"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:tint="?attr/colorError" /> <!-- Tinte rojo para el ícono -->
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

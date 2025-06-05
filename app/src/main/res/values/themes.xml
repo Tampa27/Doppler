@@ -18,4 +18,33 @@
         <!-- Customize your dark theme here. -->
         <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
     </style>
+
+    <style name="ProfessionalTextView" parent="TextAppearance.MaterialComponents.Subtitle1">
+        <!-- Color profesional (gris oscuro con opción modo oscuro) -->
+        <item name="android:textColor">@color/white</item>
+
+        <!-- Tamaño legible sin ser intrusivo -->
+        <item name="android:textSize">16sp</item>
+
+        <!-- Fuente profesional (Roboto o sans-serif) -->
+        <item name="fontFamily">@font/roboto_regular</item>
+
+        <!-- Espaciado y alineación profesional -->
+            <item name="android:lineSpacingExtra">4sp</item>
+
+
+            <!-- Máximo de líneas y modo ellipsis -->
+            <item name="android:maxLines">5</item>
+            <item name="android:ellipsize">end</item>
+
+            <!-- Padding para respiración visual -->
+
+        <!-- Soporte para modo oscuro -->
+        <item name="android:theme">@style/ThemeOverlay.ProfessionalText</item>
+    </style>
+
+    <style name="ThemeOverlay.ProfessionalText" parent="">
+        <item name="android:textColorPrimary">?attr/colorOnSurface</item>
+    </style>
+
 </resources>

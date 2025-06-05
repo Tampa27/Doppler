@@ -32,6 +32,7 @@
                 android:text="IP"
                 android:gravity="center"
                 android:textStyle="bold"
+                style="@style/ProfessionalTextView"
                 android:textColor="@color/white"/>
             <TextView
                 android:layout_width="match_parent"
@@ -39,6 +40,7 @@
                 android:textSize="18sp"
                 android:text="0.00"
                 android:gravity="center"
+                style="@style/ProfessionalTextView"
                 android:id="@+id/ipText"
                 android:textColor="@color/yellow"/>
         </LinearLayout>
@@ -52,7 +54,7 @@
             android:text="Umbral:60dB"
             android:gravity="center"
             android:id="@+id/dbText"
-            android:textColor="@color/white"
+            style="@style/ProfessionalTextView"
             />
         <SeekBar
             android:id="@+id/umbralSeek"
@@ -69,20 +71,75 @@
             android:layout_height="wrap_content"
             android:id="@+id/checkEnvol"
             android:textSize="14sp"
-            android:textColor="@color/white"
             android:text="VMedia"
+            style="@style/ProfessionalTextView"
             android:checked="false"/>
+
+<!--        <com.google.android.material.textfield.TextInputLayout-->
+<!--            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:layout_marginTop="8dp"-->
+<!--            app:boxStrokeColor="@color/white"-->
+<!--            app:placeholderTextColor="@color/white"-->
+<!--            app:counterTextColor="@color/white"-->
+<!--            android:textColorHint="@color/white"-->
+<!--            android:hint="Diámetro en mm">-->
+
+<!--            <com.google.android.material.textfield.TextInputEditText-->
+<!--                android:id="@+id/diametro"-->
+<!--                android:textSize="13sp"-->
+<!--                android:textColor="@color/white"-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:inputType="numberDecimal" />-->
+
+<!--        </com.google.android.material.textfield.TextInputLayout>-->
 
     </LinearLayout>
 
-    <ImageView
-        android:id="@+id/imageView"
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:backgroundTint="@color/black"
-        android:scaleType="fitCenter"
-        android:layout_weight="0.8"
-         />
+        android:orientation="vertical"
+        android:weightSum="1"
+        android:layout_weight="0.8">
+
+        <ImageView
+            android:id="@+id/imageView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:backgroundTint="@color/black"
+            android:scaleType="fitCenter"
+            android:layout_weight="0.93"
+            />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="0.07"
+            android:gravity="center"
+            android:id="@+id/pacienteText"
+            android:textSize="16sp"
+            style="@style/ProfessionalTextView"
+            android:text="Paciente:Ahmed"/>
 
 
+    </LinearLayout>
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:visibility="gone"
+        android:gravity="center"
+        android:id="@+id/loading_layout"
+        android:layout_height="match_parent">
+
+        <ProgressBar
+            android:id="@+id/progressBar"
+            style="?android:attr/progressBarStyleLarge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            />
+
+    </LinearLayout>
 </LinearLayout>

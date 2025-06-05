@@ -28,7 +28,7 @@ class PatientsActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var pacienteAdapter: PacienteAdapter
     private val listaDePacientes = mutableListOf<Paciente>() // Lista de ejemplo, idealmente desde ViewModel/Room
-
+    private var pacienteSeleccionado: Paciente? = null // Para rastrear el paciente seleccionado
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_patients)
@@ -40,11 +40,16 @@ class PatientsActivity : AppCompatActivity() {
         val fabAddPatient: FloatingActionButton = findViewById(R.id.fabAddPatient)
 
         // Configurar el Adapter
-        pacienteAdapter = PacienteAdapter { pacienteSeleccionado ->
-            // Acción al hacer clic en un paciente de la lista
-            //Toast.makeText(this, "Paciente: ${pacienteSeleccionado.nombre}", Toast.LENGTH_SHORT).show()
-            // Aquí podrías abrir una pantalla de detalles del paciente, por ejemplo
-        }
+        pacienteAdapter = PacienteAdapter(
+            onItemClicked = { paciente ->
+                //pacienteSeleccionado = paciente // Actualiza el paciente seleccionado en la Activity
+                Toast.makeText(this, "Seleccionado: ${paciente.nombre}", Toast.LENGTH_SHORT).show()
+                // Aquí puedes habilitar otros botones o acciones basadas en la selección
+            },
+            onDeleteClicked = { paciente ->
+                confirmarEliminacionPaciente(paciente)
+            }
+        )
 
         // Configurar el RecyclerView
         recyclerView.adapter = pacienteAdapter
@@ -56,6 +61,39 @@ class PatientsActivity : AppCompatActivity() {
 
         fabAddPatient.setOnClickListener {
             mostrarDialogoAgregarPaciente()
+        }
+
+    }
+
+    private fun confirmarEliminacionPaciente(paciente: Paciente) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Eliminar Paciente")
+            .setMessage("¿Estás seguro de que quieres eliminar a ${paciente.nombre}?")
+            .setNegativeButton("Cancelar", null)
+            .setPositiveButton("Eliminar") { _, _ ->
+                eliminarPaciente(paciente)
+            }
+            .show()
+    }
+
+    private fun eliminarPaciente(paciente: Paciente) {
+        // --- Aquí normalmente interactuarías con tu ViewModel y Room para eliminar ---
+
+
+        lifecycleScope.launch {
+            pacienteDao.eliminarPacientePorDna(paciente.dna)
+            // Mostrar un Toast o mensaje de éxito
+            Toast.makeText(this@PatientsActivity, "Paciente eliminado", Toast.LENGTH_SHORT).show()
+        }
+        //listaDePacientes.removeAt(indice)
+        //pacienteAdapter.submitList(listaDePacientes.toList()) // Actualiza el RecyclerView
+
+        // Si el paciente eliminado era el seleccionado, deseleccionar
+        if (pacienteSeleccionado == paciente) {
+            pacienteSeleccionado = null
+        // Opcional: podrías querer limpiar la selección visual en el adapter también
+        // pacienteAdapter.setSelectedPosition(RecyclerView.NO_POSITION)
+        // Aunque al remover el ítem, el adapter se reajustará
         }
 
     }

@@ -8,4 +8,7 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="yellow">#FFEB3B</color>
+    <color name="professional_text_primary">#ECEFF1</color> <!-- Gris claro -->
+    <color name="professional_text_secondary">#B0BEC5</color> <!-- Gris medio -->
+    <color name="selected_item_background">#B6A5A5</color> <!-- Ejemplo: Gris claro -->
 </resources>

@@ -23,9 +23,11 @@ import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.ViewTreeObserver
 import android.view.WindowManager
 import android.widget.CheckBox
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
@@ -33,7 +35,15 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
+import com.amg.dopplerultrasound.data.Paciente
+import com.amg.dopplerultrasound.data.PacienteDao
+import com.weiner.recordaudio.AppDatabase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
@@ -41,10 +51,12 @@ import kotlin.concurrent.thread
 import kotlin.math.cos
 import kotlin.math.log
 import kotlin.math.log2
+import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.properties.Delegates
+import androidx.core.graphics.createBitmap
 
 class MainActivity : AppCompatActivity() {
 
@@ -69,20 +81,28 @@ class MainActivity : AppCompatActivity() {
     private lateinit var checkEnvol:CheckBox
     private lateinit var ipText: TextView
     private lateinit var dBText: TextView
+    private lateinit var linearLayout: LinearLayout
+    private lateinit var patientText: TextView
 
     private lateinit var unit:String
     private var windowSize = 512
+    private var samplesBetweenWindows = 0
     private val textWidth = 60
     private val c = 154000.0
     private var isRunning:Boolean = false
-
+    private var isLoaded:Boolean = false
+    val overlap = 0.5 // 50%
     private lateinit var bmp: Bitmap
     private var ipSize:Int=0
     private val fmList = mutableListOf<Double>()
 
-    private val xAnt = 0
     private var yAnt = 0.0f
 
+    private var patientSelected = 0
+    private lateinit var patient:Paciente
+    lateinit var database: AppDatabase
+    lateinit var pacienteDao: PacienteDao
+    private lateinit var pacientes: List<Paciente>
 
 
     private lateinit var sharedPreferences: SharedPreferences
@@ -106,11 +126,18 @@ class MainActivity : AppCompatActivity() {
                     or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
         }
 
+        linearLayout = findViewById(R.id.loading_layout)
+        database = AppDatabase.getDatabase(applicationContext) // O el contexto apropiado
+        pacienteDao = database.pacienteDao()
+        cargarPacientes()
+
         imageView = findViewById(R.id.imageView)
         ipText = findViewById(R.id.ipText)
         dBText = findViewById(R.id.dbText)
         seekdB = findViewById(R.id.umbralSeek)
         checkEnvol = findViewById(R.id.checkEnvol)
+        patientText = findViewById(R.id.pacienteText)
+
         seekdB.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener{
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 maxDb = progress
@@ -130,7 +157,20 @@ class MainActivity : AppCompatActivity() {
                 isRunning = false
             }
         }
+        imageView.viewTreeObserver.addOnGlobalLayoutListener(
+            object : ViewTreeObserver.OnGlobalLayoutListener {
+                override fun onGlobalLayout() {
+                    if (imageView.width > 0 && imageView.height > 0) {
+                        imageView.viewTreeObserver.removeOnGlobalLayoutListener(this)
 
+                        // Las dimensiones ya están disponibles (>0)
+                        Log.d("ImageView", "Ancho: ${imageView.width}, Alto: ${imageView.height}")
+                        bmp = createBitmap(imageView.width, imageView.height)
+                        bmp.eraseColor(Color.BLACK)
+                    }
+                }
+            }
+        )
         loadPreferences()
 
         Toast.makeText(
@@ -143,7 +183,7 @@ class MainActivity : AppCompatActivity() {
         Handler(Looper.getMainLooper()).postDelayed({
             isRunning = true
             recordAudioWithPermissions()
-        }, 2000)
+        }, 1000)
     }
 
     private fun loadPreferences() {
@@ -152,11 +192,29 @@ class MainActivity : AppCompatActivity() {
         unit = sharedPreferences.getString("units","cm/s")!!
         Fs = sharedPreferences.getString("fs","11025")!!.toInt()
         windowSize = sharedPreferences.getString("window","512")!!.toInt()
+        //val samplesBetweenWindows = (windowSize * overlap).toInt()
         val time = sharedPreferences.getString("time","4")!!.toInt()+1
         val ms = (windowSize.toFloat()/Fs)
-        MAX_ARRAY_SIZE = ((1/ms)*time).toInt()
+        MAX_ARRAY_SIZE = ((time.toFloat()/ms)).toInt()
+        patientSelected = sharedPreferences.getInt("patient",0)
+
+    //cargarPacientes()
     }
 
+    private fun cargarPacientes(){
+        lifecycleScope.launch {
+            linearLayout.visibility = View.VISIBLE
+            try {
+                pacientes = pacienteDao.getTodosLosPacientes().first()
+                patient = pacientes[patientSelected]
+                patientText.text = "Paciente: ${patient.nombre}"
+            }
+            catch (e:Exception){}
+            finally {
+                linearLayout.visibility = View.GONE
+            }
+        }
+    }
 
     override fun onResume() {
         super.onResume()
@@ -166,8 +224,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        bmp = Bitmap.createBitmap(imageView.width, imageView.height, Bitmap.Config.ARGB_8888)
-        bmp.eraseColor(Color.BLACK)
+        /*if (hasFocus) {
+            bmp = createBitmap(imageView.width, imageView.height)
+            bmp.eraseColor(Color.BLACK)
+        }*/
     }
 
     @SuppressLint("MissingPermission")
@@ -175,10 +235,12 @@ class MainActivity : AppCompatActivity() {
         val RECORDER_SAMPLERATE = Fs//8000
         val RECORDER_CHANNELS: Int = AudioFormat.CHANNEL_IN_MONO
         val RECORDER_AUDIO_ENCODING: Int = AudioFormat.ENCODING_PCM_16BIT
-        val butterSize = AudioRecord.getMinBufferSize(
+        val butterSize = max(AudioRecord.getMinBufferSize(
             RECORDER_SAMPLERATE,
             RECORDER_CHANNELS, RECORDER_AUDIO_ENCODING
-        )
+        ),windowSize)
+
+        var currentPosition = 0
         val buffer = ShortArray(butterSize)
         frequenciesCount = windowSize//getMinimalPowerOf2(butterSize)
         data = Array(MAX_ARRAY_SIZE) {
@@ -203,8 +265,8 @@ class MainActivity : AppCompatActivity() {
         )*/
 
         val fft = FFT(frequenciesCount)
-
-        thread {
+        lifecycleScope.launch (Dispatchers.Default){
+        //thread {
             recorder.startRecording()
             //audioTrack.play()
             //audioTrack.setVolume(AudioTrack.getMaxVolume())
@@ -214,10 +276,13 @@ class MainActivity : AppCompatActivity() {
                 /*if (bytesRead > 0) {
                     audioTrack.write(buffer, 0, bytesRead)
                 }*/
+                currentPosition += samplesBetweenWindows
+
                 for (fr in 0 until frequenciesCount) {
                     x[fr] = buffer[fr] * 1.0
                     y[fr] = 0.0
                 }
+                //currentPosition += samplesBetweenWindows
                 fft.process(x, y)
                 //val threshold = calculateNoiseThreshold(y)
                 //y = applyThreshold(y, threshold)
@@ -225,10 +290,7 @@ class MainActivity : AppCompatActivity() {
                     val mag_abs = Math.abs(y[fr])
                     data[currentIndex][fr] = mag_abs
                 }
-                /*val yabs = y.map { it.absoluteValue }
-                val fmax = yabs.max()
-                val fmin = yabs.min()
-                val sum = yabs.sum()*/
+
                 val fmed = fMeans(data[currentIndex])
 
                 if (fmList.size < ipSize){
@@ -244,8 +306,9 @@ class MainActivity : AppCompatActivity() {
                         fmList.add(fmed.toDouble())
                     }
                 }
-
-                render()
+                withContext(Dispatchers.Main) {
+                    render()
+                }
                 currentIndex = if (currentIndex == (MAX_ARRAY_SIZE - 1)) 0 else currentIndex + 1
             }
             recorder.stop()
@@ -254,92 +317,88 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun render() {
-        val c = Canvas(bmp)
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-        val rectWidth = 1.0f * (bmp.width) / MAX_ARRAY_SIZE
-        val rectHeight = 1.0f * bmp.height / (frequenciesCount / 2.0f)
-        val halfOfFrequencies = frequenciesCount / 2
-        paint.color = Color.WHITE
-        paint.textSize = 30f
-        for (i in 0..Fs / 2 step 1000) {
-            val yt = bmp.height * (1f - i.toFloat() / (Fs / 2))
-            if (i < (Fs / 2 - 1000)) {
-                if(unit == "cm/s") {
-                    var vel = getVelocidad(i.toDouble())
-                    vel = Math.round(vel / 10.0) * 10.0
-                    c.drawText(" ${String.format("%.0f", vel)}", 0f, yt - textHeight, paint)
-                }
-                else{
-                    c.drawText(" "+i/1000, 0f, yt - textHeight, paint)
+        if (this::bmp.isInitialized && bmp.width > 0 && bmp.height > 0) {
+            val c = Canvas(bmp)
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+            val rectWidth = 1.0f * (bmp.width) / MAX_ARRAY_SIZE
+            val rectHeight = 1.0f * bmp.height / (frequenciesCount / 2.0f)
+            val halfOfFrequencies = frequenciesCount / 2
+            paint.color = Color.WHITE
+            paint.textSize = 30f
+            for (i in 0..Fs / 2 step 1000) {
+                val yt = bmp.height * (1f - i.toFloat() / (Fs / 2))
+                if (i < (Fs / 2 - 1000)) {
+                    if (unit == "cm/s") {
+                        var vel = getVelocidad(i.toDouble())
+                        vel = Math.round(vel / 10.0) * 10.0
+                        c.drawText(" ${String.format("%.0f", vel)}", 0f, yt - textHeight, paint)
+                    } else {
+                        c.drawText(" " + i / 1000, 0f, yt - textHeight, paint)
+                    }
+                } else {
+                    paint.textSize = 25f
+                    c.drawText(unit, 0f, yt, paint)
                 }
             }
-            else {
-                paint.textSize = 25f
-                c.drawText(unit, 0f, yt, paint)
+            val max_time = ((windowSize.toFloat() / Fs) * MAX_ARRAY_SIZE).toInt() + 1
+            for (i in 0 until max_time) {
+                val xt = (bmp.width - textHeight) * (1f - (i.toFloat() / max_time))
+                c.drawText(" " + i + "s", xt, bmp.height.toFloat(), paint)
             }
-        }
-        val max_time = ((windowSize.toFloat()/Fs)* MAX_ARRAY_SIZE).toInt()+1
-        for(i in 0 until max_time){
-            val xt = (bmp.width-textHeight) * (1f - (i.toFloat() / max_time))
-            c.drawText(" " + i + "s", xt, bmp.height.toFloat(), paint)
-        }
-        repeat(MAX_ARRAY_SIZE) { x ->
-            val index =
-                if (currentIndex + x + 1 < MAX_ARRAY_SIZE) currentIndex + x + 1 else currentIndex + x + 1 - MAX_ARRAY_SIZE
-            val min = data[index].min()
-            val max = data[index].max()
-            /*val maxPox = data[index].withIndex()
+            repeat(MAX_ARRAY_SIZE) { x ->
+                val index =
+                    if (currentIndex + x + 1 < MAX_ARRAY_SIZE) currentIndex + x + 1 else currentIndex + x + 1 - MAX_ARRAY_SIZE
+                val min = data[index].min()
+                val max = data[index].max()
+                /*val maxPox = data[index].withIndex()
                 .filter { it.index < halfOfFrequencies } // Filtrar elementos hasta la mitad
                 .maxByOrNull { it.value }*/
-            for (y in 0 until halfOfFrequencies) {
-                val magdB = 20* log(data[index][y],10.0)
-                if (magdB < maxDb)
-                    paint.color = getColorByValue(0.0, min, max)
-                else
-                    paint.color = getColorByValue(data[index][y], min, max)
-                c.drawRect(
-                    x * (rectWidth)+textWidth ,
-                    (halfOfFrequencies - y) * rectHeight-textHeight,
-                    (x + 1) * (rectWidth) +textWidth,
-                    (halfOfFrequencies - y + 1) * rectHeight-textHeight,
-                    paint
-                )
-            }
+                for (y in 0 until halfOfFrequencies) {
+                    val magdB = 20 * log(data[index][y], 10.0)
+                    if (magdB < maxDb)
+                        paint.color = getColorByValue(0.0, min, max)
+                    else
+                        paint.color = getColorByValue(data[index][y], min, max)
+                    c.drawRect(
+                        x * (rectWidth) + textWidth,
+                        (halfOfFrequencies - y) * rectHeight - textHeight,
+                        (x + 1) * (rectWidth) + textWidth,
+                        (halfOfFrequencies - y + 1) * rectHeight - textHeight,
+                        paint
+                    )
+                }
 
-            if (checkEnvol.isChecked) {
-                paint.color = Color.WHITE
-                paint.strokeWidth = 2f
-                val fMedia = fMeans(data[index])
-                val yAct = (halfOfFrequencies - fMedia/*maxPox!!.index*/) * rectHeight - textHeight
-                c.drawLine(
-                    x * (rectWidth) + textWidth,
-                    yAnt,
-                    (x + 1) * (rectWidth) + textWidth,
-                    yAct,
-                    paint
-                )
-                yAnt = yAct
+                if (checkEnvol.isChecked) {
+                    paint.color = Color.WHITE
+                    paint.strokeWidth = 2f
+                    val fMedia = fMeans(data[index])
+                    val yAct =
+                        (halfOfFrequencies - fMedia/*maxPox!!.index*/) * rectHeight - textHeight
+                    c.drawLine(
+                        x * (rectWidth) + textWidth,
+                        yAnt,
+                        (x + 1) * (rectWidth) + textWidth,
+                        yAct,
+                        paint
+                    )
+                    yAnt = yAct
+                }
             }
-        }
-        runOnUiThread {
-            imageView.setImageBitmap(bmp)
-            ipText.text = String.format("%.1f", ip)
-            imageView.invalidate()
+            runOnUiThread {
+                imageView.setImageBitmap(bmp)
+                ipText.text = String.format("%.1f", ip)
+                imageView.invalidate()
+            }
         }
     }
 
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
-            if (isGranted) {
+            if (isGranted ) {
 
                 recordAudio()
             } else {
 
-                /*Toast.makeText(
-                    applicationContext,
-                    "Приложению нужно разрешение для записи звука",
-                    Toast.LENGTH_SHORT
-                ).show()*/
             }
         }
 
