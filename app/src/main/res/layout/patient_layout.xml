@@ -91,14 +91,14 @@
             app:layout_constraintEnd_toEndOf="parent"
             tools:text="Masculino" />
 
-        <!-- DNA del Paciente -->
+        <!-- DNI del Paciente -->
         <TextView
             android:id="@+id/textViewPacienteDnaLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:layout_marginTop="4dp"
-            android:text="DNA:"
+            android:text="CI:"
             android:textColor="@color/teal_700"
             android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
             app:layout_constraintStart_toEndOf="@id/imageViewPacienteFoto"

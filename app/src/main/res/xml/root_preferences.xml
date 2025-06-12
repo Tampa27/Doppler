@@ -30,6 +30,10 @@
             app:key="time"
             app:title="@string/time"
             app:useSimpleSummaryProvider="true" />
+        <CheckBoxPreference
+            app:defaultValue="true"
+            app:key="gray"
+            app:title="@string/gray_scale" />
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/patient_header">
